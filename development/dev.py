@@ -13,15 +13,13 @@ $ just repl
 from pathlib import Path
 from typing import Any
 
-import mono_bricks.clickhouse
-import mono_bricks.clickhouse_migrator
-import mono_bricks.testcontainers  # noqa: F401  (registers components)
-from mono_bricks import (  # noqa: F401  (for the REPL)
+from mono_bricks import (  # noqa: F401  (for the REPL; registers components)
     clickhouse,
     clickhouse_migrator,
     env,
     log,
     system,
+    testcontainers,
 )
 
 ROOT = Path(__file__).resolve().parents[1]

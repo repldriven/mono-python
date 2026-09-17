@@ -1,6 +1,9 @@
-import mono_bricks.testcontainers  # noqa: F401  (registers components)
 import pytest
-from mono_bricks import env, system
+from mono_bricks import (  # noqa: F401  (registers components)
+    env,
+    system,
+    testcontainers,
+)
 from mono_bricks.test_system import with_test_system
 
 

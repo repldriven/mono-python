@@ -66,10 +66,9 @@ system:
 ```
 
 ```python
-import mono_bricks.clickhouse
-import mono_bricks.clickhouse_migrator
-import mono_bricks.testcontainers
-from mono_bricks import clickhouse, system
+# clickhouse_migrator and testcontainers are imported for the components
+# they register; the system refers to them by kind, not by name.
+from mono_bricks import clickhouse, clickhouse_migrator, system, testcontainers
 from mono_bricks.test_system import with_test_system
 
 with with_test_system("clickhouse/application-test.yml") as sys:
