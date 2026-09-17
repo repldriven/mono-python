@@ -1,9 +1,12 @@
 from dataclasses import replace
 
-import mono_bricks.clickhouse
-import mono_bricks.testcontainers  # noqa: F401  (registers clickhouse/container)
 import pytest
-from mono_bricks import clickhouse, clickhouse_migrator, system
+from mono_bricks import (  # noqa: F401  (registers components)
+    clickhouse,
+    clickhouse_migrator,
+    system,
+    testcontainers,
+)
 from mono_bricks.test_system import with_test_system
 
 pytestmark = pytest.mark.docker

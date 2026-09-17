@@ -1,7 +1,10 @@
-import mono_bricks.clickhouse_migrator
-import mono_bricks.testcontainers  # noqa: F401  (registers clickhouse/container)
 import pytest
-from mono_bricks import clickhouse, system
+from mono_bricks import (  # noqa: F401  (registers components)
+    clickhouse,
+    clickhouse_migrator,
+    system,
+    testcontainers,
+)
 from mono_bricks.test_system import with_test_system
 
 pytestmark = pytest.mark.docker
