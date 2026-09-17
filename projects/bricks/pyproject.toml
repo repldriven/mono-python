@@ -21,7 +21,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mono-bricks"
-version = "0.1.0"
+version = "0.0.1"
 description = "Systems as data, on Polylith: the mono bricks"
 requires-python = ">=3.14"
 dependencies = [
