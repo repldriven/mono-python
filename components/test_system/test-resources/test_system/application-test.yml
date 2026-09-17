@@ -1,0 +1,10 @@
+system:
+  app:
+    handler: !system/required-component
+
+    service: !system/component
+      system/component-kind: test-system/service
+      handler: !system/local-ref handler
+      name: !profile
+        default: prod-service
+        test: test-service

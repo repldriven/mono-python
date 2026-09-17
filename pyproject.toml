@@ -1,0 +1,73 @@
+[project]
+name = "mono"
+version = "0.1.0"
+description = "The layer you build on: systems as data, on Polylith"
+requires-python = ">=3.14"
+dependencies = [
+  "pyyaml>=6.0",
+  "pydantic>=2.8",
+  "testcontainers[clickhouse]>=4.15",
+  "clickhouse-connect>=0.8",
+  "clickhouse-migrations[connect]>=0.13.0",
+  "structlog>=26.1.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "polylith-cli>=1.50",
+  "coverage>=7.16.1",
+]
+
+[build-system]
+requires = ["hatchling", "hatch-polylith-bricks"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+# Hatch doesn't expand globs here, so each brick's src is listed.
+dev-mode-dirs = [
+  "components/clickhouse/src",
+  "components/clickhouse_migrator/src",
+  "components/env/src",
+  "components/log/src",
+  "components/system/src",
+  "components/test_system/src",
+  "components/testcontainers/src",
+  "development",
+]
+
+
+[tool.pytest.ini_options]
+testpaths = ["components", "bases"]
+addopts = ["--import-mode=importlib"]
+markers = ["docker: needs a Docker daemon"]
+log_level = "INFO"
+
+[tool.coverage.run]
+source = ["components", "bases"]
+omit = ["*/test/*"]
+branch = true
+
+[tool.coverage.report]
+# Bricks' src directories have no __init__.py (mono_bricks is a namespace package), so
+# without this, bricks the tests never import are left out rather than at 0%.
+include_namespace_packages = true
+show_missing = true
+skip_empty = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.polylith.bricks]
+"components/clickhouse/src/mono_bricks/clickhouse" = "mono_bricks/clickhouse"
+"components/clickhouse_migrator/src/mono_bricks/clickhouse_migrator" = "mono_bricks/clickhouse_migrator"
+"components/env/src/mono_bricks/env" = "mono_bricks/env"
+"components/system/src/mono_bricks/system" = "mono_bricks/system"
+"components/test_system/src/mono_bricks/test_system" = "mono_bricks/test_system"
+"components/testcontainers/src/mono_bricks/testcontainers" = "mono_bricks/testcontainers"
+"components/log/src/mono_bricks/log" = "mono_bricks/log"

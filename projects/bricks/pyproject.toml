@@ -1,0 +1,50 @@
+# The workspace's bricks, delivered as one distribution. It ships no code of
+# its own. Consumers add it as a git dependency pinned to a release tag:
+#
+#   uv add "mono-bricks @ git+https://github.com/repldriven/mono-python#subdirectory=projects/bricks" --tag vX.Y.Z
+#   uv add --dev "mono-bricks[test] @ git+https://github.com/repldriven/mono-python#subdirectory=projects/bricks" --tag vX.Y.Z
+#
+# and import bricks by their own names: `from mono_bricks import system`.
+#
+# Test support (test_system, testcontainers) ships in the same wheel, with its
+# libraries in the `test` extra, so Docker and testcontainers stay out of a
+# consumer's runtime environment. It can't be a second distribution: its
+# bricks import env, log and system, and two wheels holding the same
+# mono_bricks/<brick> files would overwrite each other.
+#
+# Any change to a brick listed here is release-visible, so it needs a new tag.
+# Keep dependencies in step with the workspace pyproject.toml.
+
+[build-system]
+requires = ["hatchling", "hatch-polylith-bricks"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mono-bricks"
+version = "0.1.0"
+description = "Systems as data, on Polylith: the mono bricks"
+requires-python = ">=3.14"
+dependencies = [
+  "pyyaml>=6.0",
+  "pydantic>=2.8",
+  "structlog>=26.1.0",
+  "clickhouse-connect>=0.8",
+  "clickhouse-migrations[connect]>=0.13.0",
+]
+
+[project.optional-dependencies]
+test = ["testcontainers[clickhouse]>=4.15"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["mono_bricks"]
+
+[tool.hatch.build.hooks.polylith-bricks]
+
+[tool.polylith.bricks]
+"../../components/clickhouse/src/mono_bricks/clickhouse" = "mono_bricks/clickhouse"
+"../../components/clickhouse_migrator/src/mono_bricks/clickhouse_migrator" = "mono_bricks/clickhouse_migrator"
+"../../components/env/src/mono_bricks/env" = "mono_bricks/env"
+"../../components/log/src/mono_bricks/log" = "mono_bricks/log"
+"../../components/system/src/mono_bricks/system" = "mono_bricks/system"
+"../../components/test_system/src/mono_bricks/test_system" = "mono_bricks/test_system"
+"../../components/testcontainers/src/mono_bricks/testcontainers" = "mono_bricks/testcontainers"

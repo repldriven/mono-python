@@ -1,0 +1,7 @@
+client: !system/component
+  system/component-kind: clickhouse/client
+  host: !system/ref clickhouse-server.container-host
+  port: !system/ref clickhouse-server.container-http-port
+  username: test
+  password: test
+  database: test

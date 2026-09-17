@@ -1,0 +1,11 @@
+container: !system/component
+  system/component-kind: clickhouse/container
+
+container-host: !system/component
+  system/component-kind: clickhouse/container-host
+  container: !system/local-ref container
+
+container-http-port: !system/component
+  system/component-kind: clickhouse/container-mapped-exposed-port
+  container: !system/local-ref container
+  exposed-port: 8123

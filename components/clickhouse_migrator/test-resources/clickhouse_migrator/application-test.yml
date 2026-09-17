@@ -1,0 +1,10 @@
+system:
+  clickhouse-server: !include testcontainers/clickhouse-test.yml
+  clickhouse: !include clickhouse/client-test.yml
+
+  clickhouse-migrator:
+    migrations: !system/component
+      system/component-kind: clickhouse-migrator/migrations
+      client: !system/ref clickhouse.client
+      migrations:
+        - clickhouse_migrator/migrations

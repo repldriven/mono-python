@@ -1,0 +1,19 @@
+system:
+  db:
+    server: !system/component
+      system/component-kind: test/server
+      name: db
+
+    port: !system/component
+      system/component-kind: test/port
+      server: !system/local-ref server
+
+  app:
+    settings:
+      greeting: hello
+
+    client: !system/component
+      system/component-kind: test/client
+      port: !system/ref db.port
+      server-name: !system/ref db.server.name
+      greeting: !system/local-ref settings.greeting
