@@ -13,7 +13,9 @@ brick does for `!system/*`.
 
 Names given to `config` and `!include` are found on the resource path: every
 brick's `resources` directory, plus any roots added with `add_resource_root`
-(the workspace conftest adds each brick's `test-resources`).
+(the workspace conftest adds each brick's `test-resources`). `config` takes a
+filesystem path too, and prefers one; a `resource:` prefix skips that and
+looks only on the resource path.
 """
 
 from mono_bricks.env.core import (

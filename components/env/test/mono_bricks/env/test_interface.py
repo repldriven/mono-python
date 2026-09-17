@@ -19,8 +19,8 @@ def test_profile_picks_branch_then_default():
     assert test["system"]["config"] == {"key": "value", "nested-key": {"key": "value"}}
 
 
-def test_classpath_prefix_and_include():
-    included = env.config("classpath:env/include-test.yml")["included"]
+def test_resource_prefix_and_include():
+    included = env.config("resource:env/include-test.yml")["included"]
     assert included["system"]["port"] == 80
 
 

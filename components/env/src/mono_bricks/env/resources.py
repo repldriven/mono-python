@@ -51,7 +51,9 @@ def resource_roots() -> list[Path]:
 def find_resource(name: str) -> Path:
     """The first file on the resource path matching `name`.
 
-    A `classpath:` prefix is accepted and ignored.
+    A `resource:` prefix is accepted and ignored. It makes the lookup
+    explicit: `config` tries the filesystem before the resource path, and a
+    prefixed name has no filesystem reading, so it always comes from here.
     """
     return _find(name, Path.is_file)
 
@@ -62,7 +64,7 @@ def find_resource_dir(name: str) -> Path:
 
 
 def _find(name: str, matches: Callable[[Path], bool]) -> Path:
-    name = name.removeprefix("classpath:")
+    name = name.removeprefix("resource:")
     roots = resource_roots()
     for root in roots:
         candidate = root / name
