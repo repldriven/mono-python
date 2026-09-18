@@ -49,3 +49,11 @@ htmlcov/
 .tessl/
 .agents/
 .github/skills/
+
+# Gas City writes into the rig: run artifacts under docs/plan/gaps/, hook
+# settings in .gc/, and one worktree per work bead. None are inputs to
+# anything; all are rewritten by the next run.
+docs/plan/gaps/
+.gc/
+worktrees/
+.beads/
