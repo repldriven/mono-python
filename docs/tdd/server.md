@@ -396,6 +396,7 @@ in:
 def app(ctx: server.AppCtx) -> Litestar:
     return server.app(ctx, route_handlers=[list_pets])
 
+
 defs = system.defs(env.config("pets/application.yml", profile))
 defs["server"]["app"] = system.constant(app)
 system.start(defs)
