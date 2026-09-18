@@ -1,0 +1,9 @@
+{
+  "name": "mono-python",
+  "mode": "vendored",
+  "dependencies": {
+    "mono-python/docs": {
+      "source": "file:./plugins/docs"
+    }
+  }
+}

@@ -1,3 +1,6 @@
+import 'justfiles/github.just'
+import 'justfiles/tessl.just'
+
 default:
     @just --list
 

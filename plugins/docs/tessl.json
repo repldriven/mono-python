@@ -1,0 +1,5 @@
+{
+  "name": "mono-python/docs",
+  "mode": "vendored",
+  "dependencies": {}
+}
