@@ -1,9 +1,11 @@
+import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import msgspec
-from litestar import Litestar, Request, Response
+from litestar import Litestar, Request, Response, get
+from litestar.config.cors import CORSConfig
 from litestar.di import Provide
 from litestar.exceptions import (
     ClientException,
@@ -12,6 +14,7 @@ from litestar.exceptions import (
     SerializationException,
     ValidationException,
 )
+from litestar.handlers import HTTPRouteHandler
 from litestar.openapi import OpenAPIConfig
 from litestar.plugins.problem_details import (
     ProblemDetailsConfig,
@@ -124,6 +127,100 @@ default_exception_handlers: dict[type[Exception], ExceptionHandler] = {
 picks the first key in the exception's MRO; only `Exception`'s logs."""
 
 
+def health_routes(ready_fn: Callable[[], bool]) -> list[HTTPRouteHandler]:
+    """mono's actuator handlers, left out of the OpenAPI document:
+
+    - `/actuator/health/liveness`: 200 `UP`, without calling `ready_fn`.
+    - `/actuator/health/readiness`: 200 `UP` or 503 `DOWN` by `ready_fn()`.
+    - `/actuator/health`: readiness's status, with both under `components`.
+
+    Readiness and the aggregate call `ready_fn` once per request, in the
+    thread pool; liveness answers on the event loop.
+    """
+
+    def readiness_status() -> tuple[str, int]:
+        return ("UP", 200) if ready_fn() else ("DOWN", 503)
+
+    @get("/actuator/health/liveness", include_in_schema=False, sync_to_thread=False)
+    def liveness() -> dict[str, str]:
+        return {"status": "UP"}
+
+    @get("/actuator/health/readiness", include_in_schema=False, sync_to_thread=True)
+    def readiness() -> Response[dict[str, str]]:
+        status, code = readiness_status()
+        return Response({"status": status}, status_code=code)
+
+    @get("/actuator/health", include_in_schema=False, sync_to_thread=True)
+    def health() -> Response[dict[str, Any]]:
+        status, code = readiness_status()
+        components = {"liveness": {"status": "UP"}, "readiness": {"status": status}}
+        return Response({"status": status, "components": components}, status_code=code)
+
+    return [liveness, readiness, health]
+
+
+_IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9_-]{16,255}")
+
+
+async def require_idempotency_key(request: Request) -> str:
+    """The request's `Idempotency-Key` header, once it is 16 to 255 URL-safe
+    ASCII characters; otherwise a 400 `REJECTED` problem, and the handler does
+    not run.
+
+    A route declares it as
+    `dependencies={"idempotency_key": Provide(require_idempotency_key)}` and
+    its handler names `idempotency_key: NamedDependency[str]`. It is `async`
+    and blocks on nothing, so Litestar calls it on the event loop.
+    """
+    key = request.headers.get("idempotency-key")
+    if key is None:
+        raise problem(
+            400,
+            "REJECTED",
+            "mono/missing-idempotency-key",
+            "Missing Idempotency-Key header",
+        )
+    if not _IDEMPOTENCY_KEY.fullmatch(key):
+        raise problem(
+            400,
+            "REJECTED",
+            "mono/invalid-idempotency-key",
+            "Idempotency-Key must be 16-255 URL-safe ASCII chars",
+        )
+    return key
+
+
+# mono's cors.clj defaults, in place of CORSConfig's "*" and 600.
+_CORS_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+_CORS_HEADERS = ("Accept", "Authorization", "Content-Type")
+_CORS_MAX_AGE = 3600
+
+
+def _cors_config(cors: Mapping[str, Any] | None) -> CORSConfig | None:
+    # As cors.clj: origins are one string or many, with blanks dropped; a key
+    # that is absent takes its default, and an empty list is kept.
+    if cors is None:
+        return None
+    origins = cors.get("origins")
+    if isinstance(origins, str):
+        origins = [origins]
+    allow_origins = [o for o in origins or [] if isinstance(o, str) and o.strip()]
+    if not allow_origins:
+        return None
+
+    def given(key: str, default: Any) -> Any:
+        value = cors.get(key)
+        return default if value is None else value
+
+    return CORSConfig(
+        allow_origins=allow_origins,
+        allow_methods=list(given("methods", _CORS_METHODS)),
+        allow_headers=list(given("request_headers", _CORS_HEADERS)),
+        max_age=given("max_age", _CORS_MAX_AGE),
+        allow_credentials=bool(cors.get("credentials")),
+    )
+
+
 def _provide(value: Any) -> Provide:
     # Litestar reads a provider's parameters as request parameters, so the
     # provider takes none.
@@ -146,9 +243,11 @@ def app(
     Each of `ctx.dependencies` is a dependency on the application layer;
     every failure is answered as a problem-details body, through
     `default_exception_handlers` with `exception_handlers` merged over them
-    by key; and Litestar configures no logging of its own. `dependencies` and
-    `plugins` are added to the brick's; any other keyword reaches `Litestar`
-    as given.
+    by key; and Litestar configures no logging of its own. `health_routes`
+    are served beside `route_handlers`, from `ctx.ready_fn`. `ctx.cors`
+    becomes the `CORSConfig`, unless the caller passes `cors_config`, which is
+    used as given. `dependencies` and `plugins` are added to the brick's; any
+    other keyword reaches `Litestar` as given.
     """
     kwargs = dict(litestar_kwargs)
     dependencies: dict[str, Any] = {
@@ -161,8 +260,10 @@ def app(
     ]
     if openapi_config is not None:
         kwargs["openapi_config"] = openapi_config
+    if "cors_config" not in kwargs:
+        kwargs["cors_config"] = _cors_config(ctx.cors)
     return Litestar(
-        route_handlers=list(route_handlers),
+        route_handlers=[*route_handlers, *health_routes(ctx.ready_fn)],
         dependencies=dependencies,
         plugins=plugins,
         exception_handlers={**default_exception_handlers, **(exception_handlers or {})},
