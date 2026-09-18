@@ -431,7 +431,7 @@ passed to one `app`.
 
 ### Registration and release
 
-- Both `pyproject.toml` files: `litestar` and `uvicorn` in
+- Both `pyproject.toml` files: `litestar`, `uvicorn` and `msgspec` in
   `dependencies`, at the versions current when the brick lands.
 - The workspace `pyproject.toml`: `components/server/src` in
   `dev-mode-dirs`, and the brick in `[tool.polylith.bricks]`; the same

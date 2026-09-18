@@ -28,7 +28,8 @@ request without a valid one is answered 400 before the handler runs:
 
     @post("/pets", sync_to_thread=True,
           dependencies={"idempotency_key": Provide(require_idempotency_key)})
-    def create_pet(data: Pet, idempotency_key: NamedDependency[str]) -> Pet:
+    def create_pet(data: Pet, store: NamedDependency[Store],
+                   idempotency_key: NamedDependency[str]) -> Pet:
         return store.add(idempotency_key, data)
 """
 
