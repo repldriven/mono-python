@@ -79,8 +79,8 @@ with with_test_system("clickhouse/application-test.yml") as sys:
 Starting the system applies the `{VERSION}_{name}.sql` files in the
 `clickhouse/migrations` resource directory that haven't been applied yet. The
 migrations component's instance is the client it migrated with, so a
-component that refs `clickhouse-migrator.migrations` instead of `clickhouse.client`
-starts after the schema exists.
+component that refs `clickhouse-migrator.migrations` instead of
+`clickhouse.client` starts after the schema exists.
 
 ## Logging
 
@@ -131,6 +131,20 @@ own systems.
 
 To take an upstream fix, bump the tag. Published tags never move; cut a new
 one instead.
+
+## Documentation
+
+- `docs/tdd/` — technical designs, one per brick: the concept it
+  carries from mono and the library chosen to realise it.
+- `docs/recipes/practices/` — working on the repository itself: how
+  these documents are written.
+- `plugins/` — the Tessl rules distilled from the recipes, loaded
+  through `AGENTS.md`; see [plugins/README.md](plugins/README.md).
+
+Every recipe keeps the same shape — `Problem`, `Solution`, `Rules`,
+`Discussion`, `References` — and carries a `<!-- tessl-plugin: <name> -->`
+label naming the rule that distils its `## Rules`. A workspace built on
+these bricks installs the plugins beside its own.
 
 ## Adding a brick
 

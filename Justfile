@@ -1,3 +1,5 @@
+import 'justfiles/tessl.just'
+
 default:
     @just --list
 
