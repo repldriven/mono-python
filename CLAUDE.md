@@ -46,6 +46,11 @@ just check
 # Install the Tessl plugins from the working tree, and check them.
 just tessl-plugins-install
 just tessl-plugins-check
+
+# Cut a branch off origin/main, commit and open its PR, squash-merge it.
+just gh-fresh-branch <name>
+just gh-commit-and-pr "<title>" "<body>"
+just gh-merge
 ```
 
 @AGENTS.md
