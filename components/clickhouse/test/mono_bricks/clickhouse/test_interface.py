@@ -3,9 +3,9 @@ from mono_bricks import (  # noqa: F401  (registers components)
     clickhouse,
     clickhouse_migrator,
     system,
+    test_system,
     testcontainers,
 )
-from mono_bricks.test_system import with_test_system
 
 pytestmark = pytest.mark.docker
 
@@ -13,13 +13,13 @@ CONFIG = "clickhouse/application-test.yml"
 
 
 def test_client_queries_the_containerised_server():
-    with with_test_system(CONFIG) as sys:
+    with test_system.started(CONFIG) as sys:
         client = system.instance(sys, "clickhouse", "client")
         assert clickhouse.query(client, "SELECT 1") == [(1,)]
 
 
 def test_insert_select_on_migrated_table():
-    with with_test_system(CONFIG) as sys:
+    with test_system.started(CONFIG) as sys:
         # The pets table comes from clickhouse/migrations, applied as the
         # system started.
         client = system.instance(sys, "clickhouse-migrator", "migrations")

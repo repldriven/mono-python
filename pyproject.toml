@@ -1,6 +1,6 @@
 [project]
 name = "mono"
-version = "0.0.1"
+version = "0.0.2"
 description = "The layer you build on: systems as data, on Polylith"
 requires-python = ">=3.14"
 dependencies = [

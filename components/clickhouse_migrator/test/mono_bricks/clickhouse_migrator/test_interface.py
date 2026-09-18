@@ -5,9 +5,9 @@ from mono_bricks import (  # noqa: F401  (registers components)
     clickhouse,
     clickhouse_migrator,
     system,
+    test_system,
     testcontainers,
 )
-from mono_bricks.test_system import with_test_system
 
 pytestmark = pytest.mark.docker
 
@@ -15,7 +15,7 @@ CONFIG = "clickhouse_migrator/application-test.yml"
 
 
 def test_migrations_apply_when_the_system_starts():
-    with with_test_system(CONFIG) as sys:
+    with test_system.started(CONFIG) as sys:
         client = system.instance(sys, "clickhouse-migrator", "migrations")
         assert client is system.instance(sys, "clickhouse", "client")
         rows = clickhouse.query(client, "SELECT name FROM greetings ORDER BY id")
@@ -23,7 +23,7 @@ def test_migrations_apply_when_the_system_starts():
 
 
 def test_migrate_applies_only_what_is_pending():
-    with with_test_system(CONFIG, component_ids=["clickhouse"]) as sys:
+    with test_system.started(CONFIG, component_ids=["clickhouse"]) as sys:
         client = system.instance(sys, "clickhouse", "client")
         assert clickhouse_migrator.migrate(
             client, "clickhouse_migrator/migrations"
@@ -45,6 +45,6 @@ def test_failed_migration_fails_the_system():
         return defs
 
     with pytest.raises(system.StartError, match="clickhouse-migrator.migrations") as e:
-        with with_test_system(CONFIG, patch=broken):
+        with test_system.started(CONFIG, patch=broken):
             pass
     assert isinstance(e.value.cause, clickhouse_migrator.MigrationError)
