@@ -10,6 +10,8 @@ dependencies = [
   "clickhouse-connect>=0.8",
   "clickhouse-migrations[connect]>=0.13.0",
   "structlog>=26.1.0",
+  "litestar>=2.24",
+  "uvicorn>=0.53",
 ]
 
 [dependency-groups]
@@ -31,6 +33,7 @@ dev-mode-dirs = [
   "components/clickhouse_migrator/src",
   "components/env/src",
   "components/log/src",
+  "components/server/src",
   "components/system/src",
   "components/test_system/src",
   "components/testcontainers/src",
@@ -71,3 +74,4 @@ select = ["E", "F", "I", "B", "UP"]
 "components/test_system/src/mono_bricks/test_system" = "mono_bricks/test_system"
 "components/testcontainers/src/mono_bricks/testcontainers" = "mono_bricks/testcontainers"
 "components/log/src/mono_bricks/log" = "mono_bricks/log"
+"components/server/src/mono_bricks/server" = "mono_bricks/server"
