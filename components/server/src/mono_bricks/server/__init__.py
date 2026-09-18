@@ -20,10 +20,28 @@ and the handler names the key:
     @get("/pets", sync_to_thread=True)
     def list_pets(store: NamedDependency[Store]) -> list[Pet]:
         return store.pets()
+
+`app` also serves `health_routes`, mono's `/actuator/health` paths, from the
+adapter's `ready_fn`. A route that needs an `Idempotency-Key` header declares
+`require_idempotency_key` as a dependency, and its handler names the key; a
+request without a valid one is answered 400 before the handler runs:
+
+    @post("/pets", sync_to_thread=True,
+          dependencies={"idempotency_key": Provide(require_idempotency_key)})
+    def create_pet(data: Pet, store: NamedDependency[Store],
+                   idempotency_key: NamedDependency[str]) -> Pet:
+        return store.add(idempotency_key, data)
 """
 
 from mono_bricks.server.adapter import http_local_url
-from mono_bricks.server.core import AppCtx, app, default_exception_handlers, problem
+from mono_bricks.server.core import (
+    AppCtx,
+    app,
+    default_exception_handlers,
+    health_routes,
+    problem,
+    require_idempotency_key,
+)
 from mono_bricks.server.system import dependencies, http_url, uvicorn_adapter
 
 # Imported by name: once this brick's own system module is imported, `system`
@@ -43,6 +61,8 @@ __all__ = [
     "AppCtx",
     "app",
     "default_exception_handlers",
+    "health_routes",
     "http_local_url",
     "problem",
+    "require_idempotency_key",
 ]

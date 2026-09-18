@@ -12,6 +12,7 @@ dependencies = [
   "structlog>=26.1.0",
   "litestar>=2.24",
   "uvicorn>=0.53",
+  "msgspec>=0.21",
 ]
 
 [dependency-groups]

@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 import pytest
 from litestar import Litestar, get, post
 from litestar.di import NamedDependency
+from litestar.exceptions import NotAuthorizedException
 from mono_bricks import log, server, system
 from mono_bricks.test_system import with_test_system
 
@@ -48,9 +49,21 @@ def boom() -> None:
     raise RuntimeError("boom")
 
 
+@get("/unauthorized", sync_to_thread=True)
+def unauthorized() -> None:
+    raise NotAuthorizedException()
+
+
 def _app(ctx: server.AppCtx) -> Litestar:
     return server.app(
-        ctx, route_handlers=[read_dependencies, create_pet, bad_response, boom]
+        ctx,
+        route_handlers=[
+            read_dependencies,
+            create_pet,
+            bad_response,
+            boom,
+            unauthorized,
+        ],
     )
 
 
@@ -208,6 +221,16 @@ def test_an_unknown_path_is_404_not_found(url, caplog):
 def test_a_wrong_method_is_405_method_not_allowed(url, caplog):
     reply = _request("DELETE", f"{url}/got")
     _assert_problem(reply, 405, "METHOD_NOT_ALLOWED", "server/method-not-allowed")
+    assert _errors(caplog) == []
+
+
+def test_any_other_client_error_is_a_problem_with_its_own_status(url, caplog):
+    reply = _request("GET", f"{url}/unauthorized")
+    assert reply.status == 401
+    assert reply.headers.get_content_type() == "application/problem+json"
+    assert reply.body["status"] == 401
+    assert reply.body["title"] == "Unauthorized"
+    assert "type" not in reply.body
     assert _errors(caplog) == []
 
 
