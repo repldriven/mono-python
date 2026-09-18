@@ -173,11 +173,14 @@ over both, as mono's `system.clj` does.
 whatever the YAML names — each key a ref to a started instance,
 resolved by the system brick before start — and its instance is that
 mapping, `dict(ctx.config)`, with `dict` as the instance schema. `app`
-turns each entry into `Provide(lambda v=v: v, sync_to_thread=False)`
-on the application layer, so a handler declares the name and the type.
-Which brick the instance comes from is the YAML's business, not the
-brick's: a group called `store` holding whatever client the workspace
-chose is
+turns each entry into `Provide(provide, sync_to_thread=False)` on the
+application layer, `provide` a closure of no arguments returning the
+instance, so a handler declares the name and the type. The closure
+takes no argument because Litestar reads a provider's parameters as
+request parameters: `lambda v=v: v` fails when the `Litestar` is
+constructed, `v` having no type annotation. Which brick the instance
+comes from is the YAML's business, not the brick's: a group called
+`store` holding whatever client the workspace chose is
 
 ```yaml
 dependencies: !system/component
@@ -268,11 +271,11 @@ call. It builds a `Litestar` with:
   `render_plugins=[ScalarRenderPlugin()]`; the document at
   `/schema/openapi.json` and the page at `/schema`, Litestar's paths.
 - `route_handlers`: the base's, plus `health_routes(ctx.ready_fn)`.
-- `middleware`: the brick's request log, and `logging_config=None`,
-  both under Logging.
+- `logging_config=None`, under Logging.
 
 Anything else the base passes reaches the `Litestar` constructor as
-given.
+given, `middleware` included. The request log is the adapter's, under
+Logging.
 
 ### The error bodies
 
@@ -310,13 +313,15 @@ library that would install its own is told not to:
   one place an exception is logged, through `get_logger`.
 
 The request log is the brick's own ASGI middleware, mono's
-`request-log` interceptor: it notes the time on the way in, reads the
-status from the response's start message on the way out, and logs one
-line per request at info through `get_logger`, the event in the
-access-log shape — `GET /api/pets 200 1.2ms` — with `method`, `path`,
-`status` and `ms` as context, so the console formatter reads like an
-access log and the JSON formatter carries the fields. It excludes
-nothing; a workspace that wants the health paths quiet passes its own.
+`request-log` interceptor. The adapter serves the app wrapped in it,
+since Litestar applies app-level middleware per route, after routing,
+and a request answered 404 or 405 would not reach it there. It notes
+the time on the way in, reads the status from the response's start
+message on the way out, and logs one line per request at info through
+`get_logger`, the event in the access-log shape —
+`GET /api/pets 200 1.2ms` — with `method`, `path`, `status` and `ms`
+as context, so the console formatter reads like an access log and the
+JSON formatter carries the fields. It excludes nothing.
 
 The adapter logs its start and, once up, `Listening on <url>`, as
 mono's does.
