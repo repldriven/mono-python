@@ -1,23 +1,6 @@
 # Server
 
-> **Status: proposal, the first slice built.** The brick exists at
-> `components/server/`: the `server/dependencies`,
-> `server/uvicorn-adapter` and `server/http-url` kinds; `AppCtx` and
-> `app`, with the dependencies as providers, the problem-details
-> plugin, `default_exception_handlers` and `problem`, and Litestar's
-> logging off; `bind`, the request log, `serve`, `shutdown` and
-> `http_local_url` in `adapter.py`; the test YAML; `test_system.py`
-> and `test_adapter.py`; and the entries in the workspace
-> `pyproject.toml`. Not yet built: `health_routes`,
-> `require_idempotency_key`, the CORS config from `AppCtx.cors`, the
-> brick's OpenAPI default with the Scalar page, `test_interface.py`,
-> the entry in `projects/bricks/pyproject.toml`, the readme row and the
-> tag. What the design reuses — the `system` brick's `Component`,
-> `REQUIRED`, `constant` and `register_components`, `env`'s tags and
-> resource path, `log`'s `get_logger`, `test_system`'s
-> `with_test_system` — is named in Background. Everything under
-> Proposed Solution is the build list, and "The first slice" says what
-> came first and what follows.
+> **Status: implemented.**
 
 ## Objective
 
@@ -110,12 +93,14 @@ What exists, and what the design carries over.
   `projects/bricks/pyproject.toml`, whose dependencies stay in step
   with the workspace's. A consumer pins a tag.
 
-## Proposed Solution
+## Solution
 
 ### The library
 
-Litestar, served by uvicorn: `litestar` and `uvicorn` in both
-`pyproject.toml` files, and imported in the brick alone.
+Litestar, served by uvicorn: `litestar`, `uvicorn` and `msgspec` in
+both `pyproject.toml` files, and imported in the brick alone. `core.py`
+imports `msgspec`, Litestar's serialiser, to tell a body that failed to
+decode from a return value that failed to encode.
 
 Litestar was chosen because the one thing mono's interceptor did —
 carry a started instance to a handler — is what its dependency
@@ -129,11 +114,11 @@ runs after the handler and before the response is sent; an exception
 raised in a dependency short-circuiting the handler; a
 `ProblemDetailsPlugin` that renders RFC 9457 bodies and converts any
 exception through a map; `exception_handlers` as a map; `CORSConfig`
-below the router, so a preflight is answered on a path with no OPTIONS
-handler; and an OpenAPI document generated from handler signatures,
-with a `ScalarRenderPlugin` for the page. A handler may be
+around the router, so a preflight is answered on a path with no
+OPTIONS handler; and an OpenAPI document generated from handler
+signatures, with a `ScalarRenderPlugin` for the page. A handler may be
 synchronous, run in a thread pool when it says `sync_to_thread=True`.
-Both libraries classify Python 3.14. FastAPI and Connexion, the
+The three libraries classify Python 3.14. FastAPI and Connexion, the
 candidates it was chosen over, are in Alternatives Considered.
 
 The brick is a curated wrapper: it exposes `app`, which assembles a
@@ -187,12 +172,13 @@ resolved by the system brick before start — and its instance is that
 mapping, `dict(ctx.config)`, with `dict` as the instance schema. `app`
 turns each entry into `Provide(provide, sync_to_thread=False)` on the
 application layer, `provide` a closure of no arguments returning the
-instance, so a handler declares the name and the type. The closure
-takes no argument because Litestar reads a provider's parameters as
-request parameters: `lambda v=v: v` fails when the `Litestar` is
-constructed, `v` having no type annotation. Which brick the instance
-comes from is the YAML's business, not the brick's: a group called
-`store` holding whatever client the workspace chose is
+instance, so a handler declares the name, marked `NamedDependency`,
+and the type. The closure takes no argument because Litestar reads a
+provider's parameters as request parameters: `lambda v=v: v` fails
+when the `Litestar` is constructed, `v` having no type annotation.
+Which brick the instance comes from is the YAML's business, not the
+brick's: a group called `store` holding whatever client the workspace
+chose is
 
 ```yaml
 dependencies: !system/component
@@ -204,7 +190,7 @@ and the handler that names it is
 
 ```python
 @get("/pets", sync_to_thread=True)
-def list_pets(store: Store) -> list[Pet]:
+def list_pets(store: NamedDependency[Store]) -> list[Pet]:
     return store.pets()
 ```
 
@@ -278,8 +264,9 @@ call. It builds a `Litestar` with:
   Litestar raises leaves as `application/problem+json`.
 - `exception_handlers`: the brick's defaults, a base's merged over
   them, as `router-data` merges.
-- `cors_config` from `ctx.cors`, or none.
-- `openapi_config`: the caller's, or the brick's default with
+- `cors_config`: the caller's, else one from `ctx.cors`, else none.
+- `openapi_config`: the caller's, or the brick's default, with
+  Litestar's own title and version, `Litestar API` and `1.0.0`, and
   `render_plugins=[ScalarRenderPlugin()]`; the document at
   `/schema/openapi.json` and the page at `/schema`, Litestar's paths.
 - `route_handlers`: the base's, plus `health_routes(ctx.ready_fn)`.
@@ -303,6 +290,10 @@ Every failure the framework raises is answered in mono's shape —
   `server/method-not-allowed`.
 - A return value that does not match the handler's annotation, which
   Litestar refuses to serialise — 500, `FAILED`, `mono/bad-response`.
+- Any other client error, such as a handler raising
+  `NotAuthorizedException` or `PermissionDeniedException` — that
+  exception's status as `application/problem+json`, `title` the
+  exception's detail, and no `type`.
 - Anything else — 500, `FAILED`, `server/internal-error`, and the one
   case that logs, at error with the traceback, the method and the path.
   The client-triggered cases log nothing, as mono's do.
@@ -345,7 +336,8 @@ mono's does.
 always `{"status": "UP"}` and 200; `/actuator/health/readiness` `UP`
 and 200 or `DOWN` and 503 by `ready_fn()`; `/actuator/health` the
 aggregate with both under `components`. `app` adds them from
-`ctx.ready_fn`.
+`ctx.ready_fn`. Readiness and the aggregate call `ready_fn` in the
+thread pool; liveness calls nothing and answers on the event loop.
 
 ### The idempotency key
 
@@ -355,20 +347,24 @@ returning the `Idempotency-Key` header once it matches
 `mono/missing-idempotency-key`; a malformed one 400 `REJECTED`
 `mono/invalid-idempotency-key`. A route that needs it declares
 `dependencies={"idempotency_key": Provide(require_idempotency_key)}`
-and names `idempotency_key` in its handler, where mono's route listed
-the interceptor and the handler read the header again.
+and its handler names `idempotency_key: NamedDependency[str]`, where
+mono's route listed the interceptor and the handler read the header
+again. The provider is `async`, and blocks on nothing: Litestar calls
+it, not a base.
 
 ### CORS
 
 The adapter's `cors` config is mono's: `origins`, one string or a
 list, blanks dropped; `methods`, `request_headers`, `max_age` and
-`credentials`, defaulting as `cors.clj` does. `app` turns it into
-`CORSConfig(allow_origins, allow_methods, allow_headers, max_age,
-allow_credentials)`. No origins, no config, so nothing is permitted.
-Litestar's CORS middleware runs before routing, so the preflight a
-route declares no OPTIONS handler for is answered rather than 404ed —
-the reason mono's had to be middleware, which here is the only place
-it can be.
+`credentials`, defaulting as `cors.clj` does, so the brick sets its
+methods, request headers and 3600, not `CORSConfig`'s defaults of `*`
+and 600. `app` turns it into `CORSConfig(allow_origins, allow_methods,
+allow_headers, max_age, allow_credentials)`. No origins, no config, so
+nothing is permitted. With a `CORSConfig` set, Litestar wraps the
+router in its CORS middleware, which runs before routing, so a
+preflight from a listed origin is answered 204 on any path, one whose
+route declares no OPTIONS handler included — the reason mono's had to
+be middleware, which here is the only place it can be.
 
 ### Synchronous handlers
 
@@ -479,16 +475,18 @@ listener; no test needs Docker.
   `mono/malformed-body`; an unknown path is 404 `server/not-found`; a
   wrong method is 405 `server/method-not-allowed`; a handler that
   raises is 500 `server/internal-error` and one error line is logged;
+  a handler raising `NotAuthorizedException` is 401 with no `type`;
   every request logs one info line through the log brick, its event in
   the access-log shape and `method`, `path` and `status` in its
   context.
 - **`test_interface.py`**: liveness is `UP`; readiness is `DOWN` and
   503 when `ready_fn` says so, and the aggregate follows it; the
   idempotency key missing, malformed and valid, the last reaching the
-  handler; an allowed origin is echoed, an unlisted one gets no CORS
-  headers, a preflight is 204 without reaching the handler, and no
-  origins configured adds nothing; the OpenAPI document lists the
-  route and not the health paths, and the page is served.
+  handler; an allowed origin is echoed, an unlisted one gets no
+  `Access-Control-Allow-Origin`, a preflight is 204 without reaching
+  the handler, and no origins configured adds nothing; the OpenAPI
+  document lists the route and not the health paths, and the page is
+  served.
 - **`test_adapter.py`**: `bind` on port 0 leaves reuse-address off and
   on a fixed port sets it; `http_local_url` renders a wildcard host as
   `localhost` and a named one as given.
@@ -537,25 +535,6 @@ listener; no test needs Docker.
 
 ## Known Limitations
 
-Gaps between this design and the first slice as built:
-
-- **A `cors` block does nothing yet.** The adapter carries it into
-  `AppCtx.cors` and `app` never turns it into a `CORSConfig`, so a
-  YAML that names origins permits nothing, silently.
-- **The OpenAPI page is Litestar's.** `app` sets no `openapi_config` of
-  its own, so the document and the page are the library's defaults
-  until the brick's, with the Scalar plugin, is added.
-- **Health, the idempotency key, CORS and OpenAPI are unproved.**
-  `health_routes` and `require_idempotency_key` are not exported and
-  `test_interface.py` does not exist: the second and third slices.
-- **The brick does not ship.** It is registered in the workspace
-  `pyproject.toml` alone, not in `projects/bricks/pyproject.toml` or
-  the readme's table, so a consumer pinning a tag does not receive it.
-- **The handler example and the code disagree.** The brick's docstring
-  and its tests annotate a dependency `NamedDependency[Store]`, where
-  "The dependencies component" shows a bare `Store`; the docstring's
-  form is the one the tests exercise, and the example should say so.
-
 What the design leaves undone or unproved:
 
 - **Interceptors are not data.** The chain is Litestar's layers, set
@@ -570,6 +549,11 @@ What the design leaves undone or unproved:
 - **A request uvicorn refuses** before the app is reached — a
   malformed request line — gets uvicorn's plain 400, where Jetty's
   error handler gave a JSON body.
+- **A preflight from an unlisted origin** is answered 400,
+  `Disallowed CORS Origin`, as plain text, not a problem-details body.
+- **A response to a request from an unlisted origin** still carries
+  `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers`,
+  without `Access-Control-Allow-Origin`.
 - **An injected instance is shared across handler threads.** Its
   thread-safety is its own.
 - **No TLS.** As mono: a proxy terminates it.
