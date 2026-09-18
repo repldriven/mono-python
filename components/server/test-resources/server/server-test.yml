@@ -1,0 +1,15 @@
+app: !system/required-component
+
+dependencies: !system/component
+  system/component-kind: server/dependencies
+  got: "me"
+  this: "time"
+
+uvicorn-adapter: !system/component
+  system/component-kind: server/uvicorn-adapter
+  app: !system/local-ref app
+  dependencies: !system/local-ref dependencies
+
+http-url: !system/component
+  system/component-kind: server/http-url
+  uvicorn-adapter: !system/local-ref uvicorn-adapter
