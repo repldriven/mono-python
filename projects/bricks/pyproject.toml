@@ -30,6 +30,9 @@ dependencies = [
   "structlog>=26.1.0",
   "clickhouse-connect>=0.8",
   "clickhouse-migrations[connect]>=0.13.0",
+  "litestar>=2.24",
+  "uvicorn>=0.53",
+  "msgspec>=0.21",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +48,7 @@ packages = ["mono_bricks"]
 "../../components/clickhouse_migrator/src/mono_bricks/clickhouse_migrator" = "mono_bricks/clickhouse_migrator"
 "../../components/env/src/mono_bricks/env" = "mono_bricks/env"
 "../../components/log/src/mono_bricks/log" = "mono_bricks/log"
+"../../components/server/src/mono_bricks/server" = "mono_bricks/server"
 "../../components/system/src/mono_bricks/system" = "mono_bricks/system"
 "../../components/test_system/src/mono_bricks/test_system" = "mono_bricks/test_system"
 "../../components/testcontainers/src/mono_bricks/testcontainers" = "mono_bricks/testcontainers"

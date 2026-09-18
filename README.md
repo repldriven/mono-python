@@ -19,6 +19,7 @@ and a lifecycle you start and stop.
   testcontainers       testcontainers-python  Containers as components (generic, ClickHouse)
   clickhouse           clickhouse-connect     ClickHouse client component
   clickhouse_migrator  clickhouse-migrations  ClickHouse schema migrations, run at start
+  server               litestar, uvicorn      HTTP APIs with problem details and OpenAPI
 ```
 
 ## Layout
