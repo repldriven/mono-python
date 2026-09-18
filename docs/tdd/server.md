@@ -1,11 +1,23 @@
 # Server
 
-> **Status: proposal.** Nothing of the brick exists. What the design
-> reuses — the `system` brick's `Component`, `REQUIRED`, `constant` and
-> `register_components`, `env`'s tags and resource path, `log`'s
-> `get_logger`, `test_system`'s `with_test_system` — exists and is named
-> as such in Background. Everything under Proposed Solution is the
-> build list, and "The first slice" says what comes first.
+> **Status: proposal, the first slice built.** The brick exists at
+> `components/server/`: the `server/dependencies`,
+> `server/uvicorn-adapter` and `server/http-url` kinds; `AppCtx` and
+> `app`, with the dependencies as providers, the problem-details
+> plugin, `default_exception_handlers` and `problem`, and Litestar's
+> logging off; `bind`, the request log, `serve`, `shutdown` and
+> `http_local_url` in `adapter.py`; the test YAML; `test_system.py`
+> and `test_adapter.py`; and the entries in the workspace
+> `pyproject.toml`. Not yet built: `health_routes`,
+> `require_idempotency_key`, the CORS config from `AppCtx.cors`, the
+> brick's OpenAPI default with the Scalar page, `test_interface.py`,
+> the entry in `projects/bricks/pyproject.toml`, the readme row and the
+> tag. What the design reuses — the `system` brick's `Component`,
+> `REQUIRED`, `constant` and `register_components`, `env`'s tags and
+> resource path, `log`'s `get_logger`, `test_system`'s
+> `with_test_system` — is named in Background. Everything under
+> Proposed Solution is the build list, and "The first slice" says what
+> came first and what follows.
 
 ## Objective
 
@@ -525,6 +537,27 @@ listener; no test needs Docker.
 
 ## Known Limitations
 
+Gaps between this design and the first slice as built:
+
+- **A `cors` block does nothing yet.** The adapter carries it into
+  `AppCtx.cors` and `app` never turns it into a `CORSConfig`, so a
+  YAML that names origins permits nothing, silently.
+- **The OpenAPI page is Litestar's.** `app` sets no `openapi_config` of
+  its own, so the document and the page are the library's defaults
+  until the brick's, with the Scalar plugin, is added.
+- **Health, the idempotency key, CORS and OpenAPI are unproved.**
+  `health_routes` and `require_idempotency_key` are not exported and
+  `test_interface.py` does not exist: the second and third slices.
+- **The brick does not ship.** It is registered in the workspace
+  `pyproject.toml` alone, not in `projects/bricks/pyproject.toml` or
+  the readme's table, so a consumer pinning a tag does not receive it.
+- **The handler example and the code disagree.** The brick's docstring
+  and its tests annotate a dependency `NamedDependency[Store]`, where
+  "The dependencies component" shows a bare `Store`; the docstring's
+  form is the one the tests exercise, and the example should say so.
+
+What the design leaves undone or unproved:
+
 - **Interceptors are not data.** The chain is Litestar's layers, set
   in code; a workspace cannot reorder it from YAML.
 - **A `:leave` is two things.** A cleanup is a generator provider and
@@ -542,8 +575,6 @@ listener; no test needs Docker.
 - **No TLS.** As mono: a proxy terminates it.
 - **Readiness is a thunk.** No component flips it; a base that
   registers a webhook at start passes a `threading.Event` and sets it.
-- **Nothing has run on Python 3.14 yet.** Both libraries classify it;
-  the first slice is the proof.
 
 ## References
 
