@@ -14,6 +14,7 @@ import pytest
 from litestar import Litestar, get, post
 from litestar.config.cors import CORSConfig
 from litestar.di import NamedDependency, Provide
+from litestar.openapi import OpenAPIConfig
 from mono_bricks import server, system
 from mono_bricks.test_system import with_test_system
 
@@ -311,3 +312,35 @@ def test_each_cors_key_overrides_its_default():
 def test_a_cors_config_the_caller_passes_is_used_over_ctx_cors():
     own = CORSConfig(allow_origins=["http://a"])
     assert _cors_config({"origins": [ORIGIN]}, cors_config=own) is own
+
+
+# ---- OpenAPI ---------------------------------------------------------------
+
+
+def test_the_openapi_document_lists_the_routes_but_not_health(url):
+    reply = _request("GET", f"{url}/schema/openapi.json")
+    assert reply.status == 200
+    paths = reply.json()["paths"]
+    assert "/got" in paths
+    assert [p for p in paths if p.startswith("/actuator")] == []
+
+
+def test_the_schema_page_is_scalar(url):
+    reply = _request("GET", f"{url}/schema")
+    assert reply.status == 200
+    assert reply.headers.get_content_type() == "text/html"
+    assert b"@scalar/api-reference" in reply.body
+
+
+def test_an_openapi_config_the_caller_passes_is_used_as_given():
+    def pets(ctx: server.AppCtx) -> Litestar:
+        return server.app(
+            ctx,
+            route_handlers=[read_dependencies],
+            openapi_config=OpenAPIConfig(title="Pets", version="2"),
+        )
+
+    with _system(pets) as sys:
+        reply = _request("GET", f"{_url(sys)}/schema/openapi.json")
+        assert reply.status == 200
+        assert reply.json()["info"]["title"] == "Pets"

@@ -16,6 +16,7 @@ from litestar.exceptions import (
 )
 from litestar.handlers import HTTPRouteHandler
 from litestar.openapi import OpenAPIConfig
+from litestar.openapi.plugins import ScalarRenderPlugin
 from litestar.plugins.problem_details import (
     ProblemDetailsConfig,
     ProblemDetailsException,
@@ -246,8 +247,10 @@ def app(
     by key; and Litestar configures no logging of its own. `health_routes`
     are served beside `route_handlers`, from `ctx.ready_fn`. `ctx.cors`
     becomes the `CORSConfig`, unless the caller passes `cors_config`, which is
-    used as given. `dependencies` and `plugins` are added to the brick's; any
-    other keyword reaches `Litestar` as given.
+    used as given. The OpenAPI document is at `/schema/openapi.json` and its
+    Scalar page at `/schema`, unless the caller passes `openapi_config`.
+    `dependencies` and `plugins` are added to the brick's; any other keyword
+    reaches `Litestar` as given.
     """
     kwargs = dict(litestar_kwargs)
     dependencies: dict[str, Any] = {
@@ -258,8 +261,15 @@ def app(
         ProblemDetailsPlugin(ProblemDetailsConfig(enable_for_all_http_exceptions=True)),
         *(kwargs.pop("plugins", None) or []),
     ]
-    if openapi_config is not None:
-        kwargs["openapi_config"] = openapi_config
+    kwargs["openapi_config"] = (
+        openapi_config
+        if openapi_config is not None
+        else OpenAPIConfig(
+            title="Litestar API",
+            version="1.0.0",
+            render_plugins=[ScalarRenderPlugin()],
+        )
+    )
     if "cors_config" not in kwargs:
         kwargs["cors_config"] = _cors_config(ctx.cors)
     return Litestar(
