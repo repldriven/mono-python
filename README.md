@@ -15,7 +15,7 @@ and a lifecycle you start and stop.
   env                  PyYAML                 Config loading, tags, default/test profiles
   log                  structlog              Structured logging via stdlib, JSON or console
   system               graphlib (stdlib)      Lifecycle management, systems as data
-  test_system          -                      Systems under test, with optional permits
+  test_system          -                      Systems under test
   testcontainers       testcontainers-python  Containers as components (generic, ClickHouse)
   clickhouse           clickhouse-connect     ClickHouse client component
   clickhouse_migrator  clickhouse-migrations  ClickHouse schema migrations, run at start
@@ -69,10 +69,15 @@ system:
 ```python
 # clickhouse_migrator and testcontainers are imported for the components
 # they register; the system refers to them by kind, not by name.
-from mono_bricks import clickhouse, clickhouse_migrator, system, testcontainers
-from mono_bricks.test_system import with_test_system
+from mono_bricks import (
+    clickhouse,
+    clickhouse_migrator,
+    system,
+    test_system,
+    testcontainers,
+)
 
-with with_test_system("clickhouse/application-test.yml") as sys:
+with test_system.started("clickhouse/application-test.yml") as sys:
     client = system.instance(sys, "clickhouse-migrator", "migrations")
     clickhouse.query(client, "SELECT count() FROM pets")
 ```

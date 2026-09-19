@@ -2,9 +2,9 @@ import pytest
 from mono_bricks import (  # noqa: F401  (registers components)
     env,
     system,
+    test_system,
     testcontainers,
 )
-from mono_bricks.test_system import with_test_system
 
 
 def test_clickhouse_defs_build_without_docker():
@@ -25,7 +25,7 @@ def test_clickhouse_defs_build_without_docker():
 
 @pytest.mark.docker
 def test_generic_container_provides_mapped_ports():
-    with with_test_system("testcontainers/application-test.yml") as sys:
+    with test_system.started("testcontainers/application-test.yml") as sys:
         ports = system.instance(sys, "helloworld", "container-mapped-ports")
         assert sorted(ports) == [8080, 8081]
         assert (
